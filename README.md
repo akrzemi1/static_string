@@ -7,7 +7,7 @@ You use this library if you want to build a relatively short string whose conten
 ```c++
 #include <iostream>
 #include "static_string.hpp"
-namespace sstr = ak__toolkit::static_str;
+namespace sstr = ak_toolkit::static_str;
 
 constexpr auto SERVICE_NAME = sstr::literal("SRVC1");
 // SERVICE_NAME has type sstr::string_literal<5>
