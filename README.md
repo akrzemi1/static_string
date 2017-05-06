@@ -30,3 +30,9 @@ int main()
 }
 
 ```
+
+## installation
+It is a C++11 header-only library.
+
+## License
+Distributed under the [Boost Software License, Version 1.0](http://www.boost.org/LICENSE_1_0.txt).
