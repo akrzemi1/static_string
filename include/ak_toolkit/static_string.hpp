@@ -74,20 +74,32 @@ namespace detail
 #endif
 
 
+struct literal_ref {};
+struct char_array {};
+
+template <int N, typename Impl = literal_ref>
+class string
+{
+	static_assert (N > 0 && N < 0, "Invalid specialization of string");
+};
+
 // # A wraper over a string literal with alternate interface. No ownership management
 
 template <int N>
-class string_literal
+class string<N, literal_ref>
 {
     const char (&_lit)[N + 1];
 public:
-    constexpr string_literal(const char (&lit)[N + 1]) : _lit(AK_TOOLKIT_ASSERTED_EXPRESSION(lit[N] == 0, lit)) {}
+    constexpr string(const char (&lit)[N + 1]) : _lit(AK_TOOLKIT_ASSERTED_EXPRESSION(lit[N] == 0, lit)) {}
     constexpr char operator[](int i) const { return AK_TOOLKIT_ASSERTED_EXPRESSION(i >= 0 && i < N, _lit[i]); }
     AK_TOOLKIT_STRING_VIEW_OPERATIONS()
     constexpr ::std::size_t size() const { return N; };
     constexpr const char* c_str() const { return _lit; }
     constexpr operator const char * () const { return c_str(); }
 };
+
+template <int N>
+  using string_literal = string<N, literal_ref>;
 
 
 // # A function that converts raw string literal into string_literal and deduces the size.
@@ -102,45 +114,32 @@ constexpr string_literal<N_PLUS_1 - 1> literal(const char (&lit)[N_PLUS_1])
 // # This implements a null-terminated array that stores elements on stack.
 
 template <int N>
-class array_string
+class string<N, char_array>
 {
     char _array[N + 1];
     struct private_ctor {};
-   
-       
-    template <int M, int... Il, int... Ir>
-    constexpr explicit array_string(private_ctor, string_literal<M> l, string_literal<N - M> r, detail::int_sequence<Il...>, detail::int_sequence<Ir...>)
+    
+    template <int M, int... Il, int... Ir, typename TL, typename TR>
+    constexpr explicit string(private_ctor, string<M, TL> l, string<N - M, TR> r, detail::int_sequence<Il...>, detail::int_sequence<Ir...>)
       : _array{l[Il]..., r[Ir]..., 0}
     {
     }
    
-    template <int... Il>
-    constexpr explicit array_string(private_ctor, string_literal<N> l, detail::int_sequence<Il...>)
+    template <int... Il, typename T>
+    constexpr explicit string(private_ctor, string<N, T> l, detail::int_sequence<Il...>)
       : _array{l[Il]..., 0}
     {
     }
    
-        template <int M, int... Il, int... Ir>
-    constexpr explicit array_string(private_ctor, array_string<M> const& l, array_string<N - M> const& r, detail::int_sequence<Il...>, detail::int_sequence<Ir...>)
-      : _array{l[Il]..., r[Ir]..., 0}
-    {
-    }
-   
 public:
-    template <int M, typename std::enable_if<(M < N), bool>::type = true>
-    constexpr explicit array_string(string_literal<M> l, string_literal<N - M> r)
-    : array_string(private_ctor{}, l, r, detail::make_int_sequence<M>{}, detail::make_int_sequence<N - M>{})
+    template <int M, typename TL, typename TR, typename std::enable_if<(M < N), bool>::type = true>
+    constexpr explicit string(string<M, TL> l, string<N - M, TR> r)
+    : string(private_ctor{}, l, r, detail::make_int_sequence<M>{}, detail::make_int_sequence<N - M>{})
     {
     }
 
-    constexpr array_string(string_literal<N> l) // converting
-    : array_string(private_ctor{}, l, detail::make_int_sequence<N>{})
-    {
-    }
-   
-    template <int M, typename std::enable_if<(M < N), bool>::type = true>
-    constexpr explicit array_string(array_string<M> const& l, array_string<N - M> const& r)
-    : array_string(private_ctor{}, l, r, detail::make_int_sequence<M>{}, detail::make_int_sequence<N - M>{})
+    constexpr string(string_literal<N> l) // converting
+    : string(private_ctor{}, l, detail::make_int_sequence<N>{})
     {
     }
    
@@ -152,56 +151,27 @@ public:
     constexpr char operator[] (int i) const { return AK_TOOLKIT_ASSERTED_EXPRESSION(i >= 0 && i < N, _array[i]); }
 };
 
-
+template <int N>
+  using array_string = string<N, char_array>;
+  
 // # A set of concatenating operators, for different combinations of raw literals, string_literal<>, and array_string<>
 
-template <int N1, int N2>
-constexpr array_string<N1 + N2> operator+(string_literal<N1> l, string_literal<N2> r)
+template <int N1, int N2, typename TL, typename TR>
+constexpr string<N1 + N2, char_array> operator+(string<N1, TL> l, string<N2, TR> r)
 {
-    return array_string<N1 + N2>(l, r);
+    return string<N1 + N2, char_array>(l, r);
 }
 
-template <int N1_1, int N2>
-constexpr array_string<N1_1 - 1 + N2> operator+(const char (&l)[N1_1], string_literal<N2> r)
+template <int N1_1, int N2, typename TR>
+constexpr string<N1_1 - 1 + N2, char_array> operator+(const char (&l)[N1_1], string<N2, TR> r)
 {
-    return array_string<N1_1 - 1 + N2>(string_literal<N1_1 - 1>(l), r);
+    return string<N1_1 - 1 + N2, char_array>(string_literal<N1_1 - 1>(l), r);
 }
 
-template <int N1, int N2_1>
-constexpr array_string<N1 + N2_1 - 1> operator+(string_literal<N1> l, const char (&r)[N2_1])
+template <int N1, int N2_1, typename TL>
+constexpr string<N1 + N2_1 - 1, char_array> operator+(string<N1, TL> l, const char (&r)[N2_1])
 {
-    return array_string<N1 + N2_1 - 1>(l, string_literal<N2_1 - 1>(r));
-}
-
-
-template <int N1, int N2>
-constexpr array_string<N1 + N2> operator+(array_string<N1> const& l, string_literal<N2> r)
-{
-    return array_string<N1 + N2>(l, array_string<N2>(r));
-}
-
-template <int N1, int N2>
-constexpr array_string<N1 + N2> operator+(string_literal<N1> l, array_string<N2> const& r)
-{
-    return array_string<N1 + N2>(l, r);
-}
-
-template <int N1, int N2>
-constexpr array_string<N1 + N2> operator+(array_string<N1> const& l, array_string<N2> const& r)
-{
-    return array_string<N1 + N2>(l, r);
-}
-
-template <int N1_1, int N2>
-constexpr array_string<N1_1 - 1 + N2> operator+(const char (&l)[N1_1], array_string<N2> const& r)
-{
-    return array_string<N1_1 - 1 + N2>(string_literal<N1_1 - 1>(l), r);
-}
-
-template <int N1, int N2_1>
-constexpr array_string<N1 + N2_1 - 1> operator+(array_string<N1> const& l, const char (&r)[N2_1])
-{
-    return array_string<N1 + N2_1 - 1>(l, array_string<N2_1 - 1>(string_literal<N2_1 - 1>(r)));
+    return string<N1 + N2_1 - 1, char_array>(l, string_literal<N2_1 - 1>(r));
 }
 
 }} // namespace ak_toolkit::static_str
