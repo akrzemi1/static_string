@@ -68,9 +68,9 @@ namespace detail
 // # Implementation of a constexpr-compatible assertion
 
 #if defined NDEBUG
-# define AK_TOOLKIT_ASSERTED_EXPRESSION(CHECK, EXPR) (EXPR)
+# define AK_TOOLKIT_ASSERT(CHECK) void(0)
 #else
-# define AK_TOOLKIT_ASSERTED_EXPRESSION(CHECK, EXPR) ((CHECK) ? (EXPR) : ([]{assert(!#CHECK);}(), (EXPR)))
+# define AK_TOOLKIT_ASSERT(CHECK) ((CHECK) ? void(0) : []{assert(!#CHECK);}())
 #endif
 
 
@@ -90,8 +90,8 @@ class string<N, literal_ref>
 {
     const char (&_lit)[N + 1];
 public:
-    constexpr string(const char (&lit)[N + 1]) : _lit(AK_TOOLKIT_ASSERTED_EXPRESSION(lit[N] == 0, lit)) {}
-    constexpr char operator[](int i) const { return AK_TOOLKIT_ASSERTED_EXPRESSION(i >= 0 && i < N, _lit[i]); }
+    constexpr string(const char (&lit)[N + 1]) : _lit((AK_TOOLKIT_ASSERT(lit[N] == 0), lit)) {}
+    constexpr char operator[](int i) const { return AK_TOOLKIT_ASSERT(i >= 0 && i < N), _lit[i]; }
     AK_TOOLKIT_STRING_VIEW_OPERATIONS()
     constexpr ::std::size_t size() const { return N; };
     constexpr const char* c_str() const { return _lit; }
@@ -148,7 +148,7 @@ public:
     constexpr const char* c_str() const { return _array; }
     constexpr operator const char * () const { return c_str(); }
     AK_TOOLKIT_STRING_VIEW_OPERATIONS()
-    constexpr char operator[] (int i) const { return AK_TOOLKIT_ASSERTED_EXPRESSION(i >= 0 && i < N, _array[i]); }
+    constexpr char operator[] (int i) const { return AK_TOOLKIT_ASSERT(i >= 0 && i < N), _array[i]; }
 };
 
 template <int N>
