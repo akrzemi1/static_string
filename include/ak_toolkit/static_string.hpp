@@ -126,13 +126,13 @@ class string<N, char_array>
     struct private_ctor {};
     
     template <int M, int... Il, int... Ir, typename TL, typename TR>
-    constexpr explicit string(private_ctor, string<M, TL> l, string<N - M, TR> r, detail::int_sequence<Il...>, detail::int_sequence<Ir...>)
+    constexpr explicit string(private_ctor, string<M, TL> const& l, string<N - M, TR> const& r, detail::int_sequence<Il...>, detail::int_sequence<Ir...>)
       : _array{l[Il]..., r[Ir]..., 0}
     {
     }
    
     template <int... Il, typename T>
-    constexpr explicit string(private_ctor, string<N, T> l, detail::int_sequence<Il...>)
+    constexpr explicit string(private_ctor, string<N, T> const& l, detail::int_sequence<Il...>)
       : _array{l[Il]..., 0}
     {
     }
@@ -163,19 +163,19 @@ template <int N>
 // # A set of concatenating operators, for different combinations of raw literals, string_literal<>, and array_string<>
 
 template <int N1, int N2, typename TL, typename TR>
-constexpr string<N1 + N2, char_array> operator+(string<N1, TL> l, string<N2, TR> r)
+constexpr string<N1 + N2, char_array> operator+(string<N1, TL> const& l, string<N2, TR> const& r)
 {
     return string<N1 + N2, char_array>(l, r);
 }
 
 template <int N1_1, int N2, typename TR>
-constexpr string<N1_1 - 1 + N2, char_array> operator+(const char (&l)[N1_1], string<N2, TR> r)
+constexpr string<N1_1 - 1 + N2, char_array> operator+(const char (&l)[N1_1], string<N2, TR> const& r)
 {
     return string<N1_1 - 1 + N2, char_array>(string_literal<N1_1 - 1>(l), r);
 }
 
 template <int N1, int N2_1, typename TL>
-constexpr string<N1 + N2_1 - 1, char_array> operator+(string<N1, TL> l, const char (&r)[N2_1])
+constexpr string<N1 + N2_1 - 1, char_array> operator+(string<N1, TL> const& l, const char (&r)[N2_1])
 {
     return string<N1 + N2_1 - 1, char_array>(l, string_literal<N2_1 - 1>(r));
 }
