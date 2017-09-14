@@ -1,5 +1,5 @@
 # static_string
-A C++11 single-header library for representing and concatenating constexpr string literals.
+A C++11 single-header library for representing and concatenating constexpr string literals. 
 
 ## Usage
 You use this library if you want to build a relatively short string whose contents you know at compile time, and you want to make sure no [static initialization order fiasco](https://isocpp.org/wiki/faq/ctors#static-init-order) ever occurs.
@@ -30,6 +30,8 @@ int main()
 }
 
 ```
+
+For more information see [this blog post](https://akrzemi1.wordpress.com/2017/06/28/compile-time-string-concatenation/).
 
 ## installation
 It is a C++11 header-only library.
