@@ -14,7 +14,7 @@ constexpr auto SERVICE_NAME = sstr::literal("SRVC1");
 // string_literal is a reference to a C-like string literal, but with different interface
 // length of the literal is part of the type
 
-constexpr auto MESSAGE = "service " + SERVICE_NAME " ready";
+constexpr auto MESSAGE = "service " + SERVICE_NAME + " ready";
 // MESSAGE has type sstr::array_string<8 + 5 + 6>
 // array_string is an array that stores the null-terminated literal
 // length of the array (excluding the trailing zero) is part of the type
