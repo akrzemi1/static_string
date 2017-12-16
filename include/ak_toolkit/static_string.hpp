@@ -138,7 +138,7 @@ class string<N, char_array>
     }
    
 public:
-    template <int M, typename TL, typename TR, typename std::enable_if<(M < N), bool>::type = true>
+    template <int M, typename TL, typename TR, typename std::enable_if<(M <= N), bool>::type = true>
     constexpr explicit string(string<M, TL> l, string<N - M, TR> r)
     : string(private_ctor{}, l, r, detail::make_int_sequence<M>{}, detail::make_int_sequence<N - M>{})
     {

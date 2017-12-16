@@ -13,6 +13,9 @@ constexpr auto NAME = "AB" + CD + sstr::literal("EF") + "GH";
 static_assert(NAME.size() == 8, "***");
 static_assert(NAME[0] == 'A', "***");
 
+constexpr auto CD_ = CD + "";
+static_assert(CD_.size() == CD.size(), "***");
+
 #include <sstream>
 #include <cassert>
 
