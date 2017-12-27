@@ -4,6 +4,9 @@
 // License, Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
 
+#ifndef AK_TOOLKIT_STATIC_STRING_HEADER_GUARD_2018_12_27_HPP
+#define AK_TOOLKIT_STATIC_STRING_HEADER_GUARD_2018_12_27_HPP
+
 #include <type_traits>
 #include <cassert>
 #include <cstddef>
@@ -181,3 +184,5 @@ constexpr string<N1 + N2_1 - 1, char_array> operator+(string<N1, TL> const& l, c
 }
 
 }} // namespace ak_toolkit::static_str
+
+#endif // header guard
