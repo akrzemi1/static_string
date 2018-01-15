@@ -1,4 +1,4 @@
-// Copyright (C) 2017 Andrzej Krzemienski.
+// Copyright (C) 2017 - 2018 Andrzej Krzemienski.
 //
 // Use, modification, and distribution is subject to the Boost Software
 // License, Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at
@@ -73,6 +73,8 @@ namespace detail
   using make_int_sequence = typename make_int_sequence_<I>::type;
 }
 
+// # size_tag is used to enable sonstant int inference in constructor templates
+template <int N> struct size_tag {};
 
 // # Implementation of a constexpr-compatible assertion
 
@@ -135,8 +137,11 @@ class string<N, char_array>
     }
    
     template <int... Il, typename T>
-    constexpr explicit string(private_ctor, string<N, T> const& l, detail::int_sequence<Il...>)
-      : _array{l[Il]..., 0}
+    constexpr explicit string(private_ctor, T const& l,
+                              detail::int_sequence<Il...>,
+                              int offset
+                              )
+      : _array{l[Il + offset]..., 0}
     {
     }
    
@@ -146,9 +151,15 @@ public:
     : string(private_ctor{}, l, r, detail::make_int_sequence<M>{}, detail::make_int_sequence<N - M>{})
     {
     }
-
+    
+    template <int N2_plus_1, int from>
+    constexpr explicit string(const char (&lit)[N2_plus_1], size_tag<from>)
+    : string(private_ctor{}, lit, detail::make_int_sequence<N2_plus_1 - 1 - from>{}, from)
+    {
+    }
+    
     constexpr string(string_literal<N> l) // converting
-    : string(private_ctor{}, l, detail::make_int_sequence<N>{})
+    : string(private_ctor{}, l, detail::make_int_sequence<N>{}, 0)
     {
     }
    
@@ -162,7 +173,15 @@ public:
 
 template <int N>
   using array_string = string<N, char_array>;
-  
+
+// # A function that converts raw string literal + offset into string_literal and deduces the size.
+
+template <int OFFSET, int N_PLUS_1>
+constexpr array_string<N_PLUS_1 - 1> offset_literal(const char (&lit)[N_PLUS_1])
+{
+    return array_string<N_PLUS_1 - 1>(lit, size_tag<OFFSET>{});
+}
+
 // # A set of concatenating operators, for different combinations of raw literals, string_literal<>, and array_string<>
 
 template <int N1, int N2, typename TL, typename TR>
