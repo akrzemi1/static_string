@@ -28,7 +28,19 @@ int main()
   std::cout << msg << std::endl;
   // outputs: "service SRVC1 ready"
 }
+```
 
+You can also take a part of a string literal starting at a given offset:
+
+```c++
+constexpr auto FILENAME = sstr::offset_literal<4>("dir/filename");
+// FILENAME has type sstr::array_string<8>
+
+int test()
+{
+  std::cout << FILENAME << std::endl;
+  // outputs: "filename"
+}
 ```
 
 For more information see [this blog post](https://akrzemi1.wordpress.com/2017/06/28/compile-time-string-concatenation/).

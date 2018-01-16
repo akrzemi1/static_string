@@ -34,12 +34,25 @@
 #   define AK_TOOLKIT_STRING_VIEW_OPERATIONS()
 # endif
 
-namespace ak_toolkit { namespace static_str {
+#if __cplusplus >= 201402L
+
+#include <utility>
+namespace ak_toolkit { namespace static_str { namespace detail {
+
+template <int... Is>
+  using int_sequence = std::integer_sequence<int, Is...>;
+
+template <int N>
+  using make_int_sequence = std::make_integer_sequence<int, N>;
+
+}}}
+
+#else // not C++14
+	
+namespace ak_toolkit { namespace static_str { namespace detail {
  
 // # Implementation of a subset of C++14 std::integer_sequence and std::make_integer_sequence
  
-namespace detail
-{
   template <int... I>
   struct int_sequence
   {};
@@ -71,7 +84,14 @@ namespace detail
  
   template <int I>
   using make_int_sequence = typename make_int_sequence_<I>::type;
-}
+
+}}} // namespace ak_toolkit::static_str::detail
+
+#endif // not C++14
+
+
+
+namespace ak_toolkit { namespace static_str {
 
 // # size_tag is used to enable sonstant int inference in constructor templates
 template <int N> struct size_tag {};
@@ -99,6 +119,8 @@ class string
 template <int N>
 class string<N, literal_ref>
 {
+	static_assert (N >= 0, "string with negative length would be created");
+	
     const char (&_lit)[N + 1];
 public:
     constexpr string(const char (&lit)[N + 1]) : _lit((AK_TOOLKIT_ASSERT(lit[N] == 0), lit)) {}
@@ -127,6 +149,8 @@ constexpr string_literal<N_PLUS_1 - 1> literal(const char (&lit)[N_PLUS_1])
 template <int N>
 class string<N, char_array>
 {
+	static_assert (N >= 0, "string with negative length would be created");
+	
     char _array[N + 1];
     struct private_ctor {};
     
@@ -176,10 +200,16 @@ template <int N>
 
 // # A function that converts raw string literal + offset into string_literal and deduces the size.
 
-template <int OFFSET, int N_PLUS_1>
-constexpr array_string<N_PLUS_1 - 1> offset_literal(const char (&lit)[N_PLUS_1])
+template <int OFFSET, int N_PLUS_1, typename std::enable_if<(OFFSET >= 0 && OFFSET < N_PLUS_1), bool>::type = true>
+constexpr array_string<N_PLUS_1 - 1 - OFFSET> offset_literal(const char (&lit)[N_PLUS_1])
 {
-    return array_string<N_PLUS_1 - 1>(lit, size_tag<OFFSET>{});
+    return AK_TOOLKIT_ASSERT(lit[N_PLUS_1 - 1] == 0), array_string<N_PLUS_1 - 1 - OFFSET>(lit, size_tag<OFFSET>{});
+}
+
+template <int OFFSET, int N_PLUS_1, typename std::enable_if<!(OFFSET >= 0 && OFFSET < N_PLUS_1), bool>::type = true>
+void offset_literal(const char (&lit)[N_PLUS_1])
+{
+    static_assert(OFFSET >= 0 && OFFSET < N_PLUS_1, "bad offset provided to offset_literal");
 }
 
 // # A set of concatenating operators, for different combinations of raw literals, string_literal<>, and array_string<>
