@@ -57,10 +57,24 @@ namespace test_offset_literal
     os << CD;
     assert(os.str() == "CD");
   }
+}
+
+namespace test_literal_suffix
+{
+  constexpr auto fpath = sstr::literal("path/fname.txt");
+  constexpr auto fname = sstr::suffix(fpath, 5);
+  
+  void run ()
+  {
+    std::ostringstream os;
+    os << fname;
+    assert(os.str() == "fname.txt");
+  }
 }	
 
 int main ()
 {
   test_offset_literal::run();
   test_concatenation::run();
+  test_literal_suffix::run();
 }

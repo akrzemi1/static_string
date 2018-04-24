@@ -19,16 +19,16 @@
 #     define AK_TOOLKIT_STRING_VIEW_OPERATIONS()
 #   elif AK_TOOLKIT_CONFIG_USING_STRING_VIEW == 1
 #     include <string_view>
-#     define AK_TOOLKIT_STRING_VIEW_OPERATIONS() constexpr operator ::std::string_view () const { return ::std::string_view(c_str(), N); }
+#     define AK_TOOLKIT_STRING_VIEW_OPERATIONS() constexpr operator ::std::string_view () const { return ::std::string_view(c_str(), size()); }
 #   elif AK_TOOLKIT_CONFIG_USING_STRING_VIEW == 2
 #     include <experimental/string_view>
-#     define AK_TOOLKIT_STRING_VIEW_OPERATIONS() constexpr operator ::std::experimental::string_view () const { return ::std::experimental::string_view(c_str(), N); }
+#     define AK_TOOLKIT_STRING_VIEW_OPERATIONS() constexpr operator ::std::experimental::string_view () const { return ::std::experimental::string_view(c_str(), size()); }
 #   elif AK_TOOLKIT_CONFIG_USING_STRING_VIEW == 3
 #     include <boost/utility/string_ref.hpp> 
-#     define AK_TOOLKIT_STRING_VIEW_OPERATIONS() constexpr operator ::boost::string_ref () const { return ::boost::string_ref(c_str(), N); }
+#     define AK_TOOLKIT_STRING_VIEW_OPERATIONS() constexpr operator ::boost::string_ref () const { return ::boost::string_ref(c_str(), size()); }
 #   elif AK_TOOLKIT_CONFIG_USING_STRING_VIEW == 4
 #     include <string> 
-#     define AK_TOOLKIT_STRING_VIEW_OPERATIONS() operator ::std::string () const { return ::std::string(c_str(), N); }
+#     define AK_TOOLKIT_STRING_VIEW_OPERATIONS() operator ::std::string () const { return ::std::string(c_str(), size()); }
 #   endif
 # else
 #   define AK_TOOLKIT_STRING_VIEW_OPERATIONS()
@@ -107,6 +107,7 @@ template <int N> struct size_tag {};
 
 struct literal_ref {};
 struct char_array {};
+struct literal_suffix {};
 
 template <int N, typename Impl = literal_ref>
 class string
@@ -122,6 +123,9 @@ class string<N, literal_ref>
 	static_assert (N >= 0, "string with negative length would be created");
 	
     const char (&_lit)[N + 1];
+    
+    template <int, typename> friend class string;
+    
 public:
     constexpr string(const char (&lit)[N + 1]) : _lit((AK_TOOLKIT_ASSERT(lit[N] == 0), lit)) {}
     constexpr char operator[](int i) const { return AK_TOOLKIT_ASSERT(i >= 0 && i < N), _lit[i]; }
@@ -197,6 +201,48 @@ public:
 
 template <int N>
   using array_string = string<N, char_array>;
+
+
+// # An implementation with compile-time capacity and constexpr length
+
+template <int N>
+class string<N, literal_suffix>
+{
+	static_assert (N >= 0, "string with negative length would be created");
+	
+    const char (&_lit)[N + 1];
+    int _offset;
+    
+    // invariant: _offset >= 0 && _offset <= N
+    
+
+    
+public:
+    constexpr string(const char (&lit)[N + 1], int offset)
+      : _lit((AK_TOOLKIT_ASSERT(lit[N] == 0), lit))
+      , _offset((AK_TOOLKIT_ASSERT(0 <= offset && offset <= N), offset)) {}
+      
+    constexpr string(string_literal<N> l, int offset)
+      : _lit(l._lit)
+      , _offset((AK_TOOLKIT_ASSERT(0 <= offset && offset <= N), offset)) {}
+      
+    constexpr string(const char (&lit)[N + 1]) : _lit((AK_TOOLKIT_ASSERT(lit[N] == 0), lit)), _offset(0) {}
+    constexpr char operator[](int i) const { return AK_TOOLKIT_ASSERT(i >= 0 && i < size()), _lit[i + _offset]; }
+    AK_TOOLKIT_STRING_VIEW_OPERATIONS()
+    constexpr ::std::size_t size() const { return N - _offset; };
+    constexpr const char* c_str() const { return _lit + _offset; }
+    constexpr operator const char * () const { return c_str(); }
+};
+
+template <int N>
+  using string_suffix = string<N, literal_suffix>;
+
+
+template <int N>
+constexpr string_suffix<N> suffix(string_literal<N> l, int offset)
+{
+  return AK_TOOLKIT_ASSERT(0 <= offset && offset <= N), string_suffix<N>(l, offset);
+}
 
 // # A function that converts raw string literal + offset into string_literal and deduces the size.
 
