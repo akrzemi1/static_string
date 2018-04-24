@@ -5,6 +5,14 @@
 
 namespace sstr = ak_toolkit::static_str;
 
+template <typename T>
+std::string to_string(T s)
+{
+  std::ostringstream os;
+  os << s;
+  return os.str(); 
+}
+
 namespace test_concatenation
 {
   #if __cplusplus >= 201703L
@@ -22,9 +30,7 @@ namespace test_concatenation
   
   void run ()
   {
-    std::ostringstream os;
-    os << NAME;
-    assert(os.str() == "ABCDEFGH");
+    assert(to_string(NAME) == "ABCDEFGH");
   }
 }
 
@@ -53,22 +59,28 @@ namespace test_offset_literal
   
   void run ()
   {
-    std::ostringstream os;
-    os << CD;
-    assert(os.str() == "CD");
+    assert(to_string(CD) == "CD");
   }
 }
 
 namespace test_literal_suffix
 {
-  constexpr auto fpath = sstr::literal("path/fname.txt");
+  constexpr auto fpath = sstr::literal("path/fname");
   constexpr auto fname = sstr::suffix(fpath, 5);
+  constexpr auto full_fname = fname + ".txt";
+    
+  constexpr auto AB = sstr::literal("AB");
+  constexpr auto B = sstr::suffix(AB, 1);
+  constexpr auto ABB = AB + B;
+  constexpr auto BAB = B + AB;
+  constexpr auto BB = B + B;
   
-  void run ()
+  void run () 
   {
-    std::ostringstream os;
-    os << fname;
-    assert(os.str() == "fname.txt");
+    assert (to_string(BB) == "BB");
+    assert (to_string(ABB) == "ABB");
+    assert (to_string(BAB) == "BAB");
+    assert (to_string(full_fname) == "fname.txt");
   }
 }	
 

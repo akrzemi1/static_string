@@ -108,6 +108,46 @@ template <int N> struct size_tag {};
 struct literal_ref {};
 struct char_array {};
 struct literal_suffix {};
+struct array_suffix {};
+
+template <typename Tag>
+struct array_upgrade
+{
+  typedef Tag type;
+};
+
+template <>
+struct array_upgrade<literal_ref>
+{
+  typedef char_array type;
+};
+
+template <>
+struct array_upgrade<literal_suffix>
+{
+  typedef array_suffix type;
+};
+
+template <typename Tag1, typename tag2>
+struct select_conctenated_array_tag
+{
+  typedef array_suffix type;
+};
+
+template <>
+struct select_conctenated_array_tag<char_array, char_array>
+{
+  typedef char_array type;
+};
+
+template <typename Tag1, typename Tag2>
+struct concat_tag
+{
+  typedef typename select_conctenated_array_tag<typename array_upgrade<Tag1>::type,
+                                                typename array_upgrade<Tag2>::type>::type type;
+};
+
+
 
 template <int N, typename Impl = literal_ref>
 class string
@@ -175,7 +215,7 @@ class string<N, char_array>
    
 public:
     template <int M, typename TL, typename TR, typename std::enable_if<(M <= N), bool>::type = true>
-    constexpr explicit string(string<M, TL> l, string<N - M, TR> r)
+    constexpr explicit string(string<M, TL> l, string<N - M, TR> r, int, int)
     : string(private_ctor{}, l, r, detail::make_int_sequence<M>{}, detail::make_int_sequence<N - M>{})
     {
     }
@@ -203,6 +243,78 @@ template <int N>
   using array_string = string<N, char_array>;
 
 
+// # This implements a suffix of a null-terminated array that stores elements on stack.
+
+template <int N>
+class string<N, array_suffix>
+{
+	static_assert (N >= 0, "string with negative length would be created");
+	
+    char _array[N + 1];
+    int _offset;
+    // invariant: 0 <= _offset && _offset <= N
+    
+    struct private_ctor {};
+    
+    template <int M, typename TL, typename TR>
+    constexpr static char permute1(string<M, TL> const& l, string<N - M, TR> const& r, int lsize, int rsize, int i)
+    {
+      return i < M - lsize + N - M - rsize ? '\0' : l[i - (M - lsize + N - M - rsize)];
+    }
+    
+    template <int M, typename TL, typename TR>
+    constexpr static char permute2(string<M, TL> const& l, string<N - M, TR> const& r, int lsize, int rsize, int i)
+    {
+      return i < N - M - rsize ? l[lsize - (N - M - rsize) + i] : r[i - (N - M - rsize)];
+    }
+    
+    template <int M, int... Il, int... Ir, typename TL, typename TR>
+    constexpr explicit string(private_ctor, string<M, TL> const& l, string<N - M, TR> const& r, detail::int_sequence<Il...>, detail::int_sequence<Ir...>,
+                              int lsize, int rsize)
+      : _array{permute1(l, r, lsize, rsize, Il)..., permute2(l, r, lsize, rsize, Ir)..., 0}
+      , _offset(N - lsize - rsize)
+    {
+    }
+   
+    template <int... Il, typename T>
+    constexpr explicit string(private_ctor, T const& l,
+                              detail::int_sequence<Il...>,
+                              int offset
+                              )
+      : _array{l[Il + offset]..., 0}
+      , _offset(offset)
+    {
+    }
+   
+public:
+    template <int M, typename TL, typename TR, typename std::enable_if<(M <= N), bool>::type = true>
+    constexpr explicit string(string<M, TL> l, string<N - M, TR> r, int lsize, int rsize)
+    : string(private_ctor{}, l, r, detail::make_int_sequence<M>{}, detail::make_int_sequence<N - M>{}, lsize, rsize)
+    {
+    }
+    
+    template <int N2_plus_1, int from>
+    constexpr explicit string(const char (&lit)[N2_plus_1], size_tag<from>)
+    : string(private_ctor{}, lit, detail::make_int_sequence<N2_plus_1 - 1 - from>{}, from)
+    {
+    }
+    
+    constexpr string(string_literal<N> l) // converting
+    : string(private_ctor{}, l, detail::make_int_sequence<N>{}, 0)
+    {
+    }
+   
+    constexpr ::std::size_t size() const { return N - _offset; }
+  
+    constexpr const char* c_str() const { return _array + _offset; }
+    constexpr operator const char * () const { return c_str(); }
+    AK_TOOLKIT_STRING_VIEW_OPERATIONS()
+    constexpr char operator[] (int i) const { return AK_TOOLKIT_ASSERT(i >= 0 && i < size()), _array[i + _offset]; }
+};
+
+template <int N>
+  using array_string_suffix = string<N, array_suffix>;
+  
 // # An implementation with compile-time capacity and constexpr length
 
 template <int N>
@@ -214,8 +326,6 @@ class string<N, literal_suffix>
     int _offset;
     
     // invariant: _offset >= 0 && _offset <= N
-    
-
     
 public:
     constexpr string(const char (&lit)[N + 1], int offset)
@@ -235,13 +345,13 @@ public:
 };
 
 template <int N>
-  using string_suffix = string<N, literal_suffix>;
+  using string_literal_suffix = string<N, literal_suffix>;
 
 
 template <int N>
-constexpr string_suffix<N> suffix(string_literal<N> l, int offset)
+constexpr string_literal_suffix<N> suffix(string_literal<N> l, int offset)
 {
-  return AK_TOOLKIT_ASSERT(0 <= offset && offset <= N), string_suffix<N>(l, offset);
+  return AK_TOOLKIT_ASSERT(0 <= offset && offset <= N), string_literal_suffix<N>(l, offset);
 }
 
 // # A function that converts raw string literal + offset into string_literal and deduces the size.
@@ -261,21 +371,21 @@ void offset_literal(const char (&lit)[N_PLUS_1])
 // # A set of concatenating operators, for different combinations of raw literals, string_literal<>, and array_string<>
 
 template <int N1, int N2, typename TL, typename TR>
-constexpr string<N1 + N2, char_array> operator+(string<N1, TL> const& l, string<N2, TR> const& r)
+constexpr string<N1 + N2, typename concat_tag<TL, TR>::type> operator+(string<N1, TL> const& l, string<N2, TR> const& r)
 {
-    return string<N1 + N2, char_array>(l, r);
+    return string<N1 + N2, typename concat_tag<TL, TR>::type>(l, r, l.size(), r.size());
 }
 
 template <int N1_1, int N2, typename TR>
-constexpr string<N1_1 - 1 + N2, char_array> operator+(const char (&l)[N1_1], string<N2, TR> const& r)
+constexpr string<N1_1 - 1 + N2, typename array_upgrade<TR>::type> operator+(const char (&l)[N1_1], string<N2, TR> const& r)
 {
-    return string<N1_1 - 1 + N2, char_array>(string_literal<N1_1 - 1>(l), r);
+    return string<N1_1 - 1 + N2, typename array_upgrade<TR>::type>(string_literal<N1_1 - 1>(l), r, N1_1 - 1, r.size());
 }
 
 template <int N1, int N2_1, typename TL>
-constexpr string<N1 + N2_1 - 1, char_array> operator+(string<N1, TL> const& l, const char (&r)[N2_1])
+constexpr string<N1 + N2_1 - 1, typename array_upgrade<TL>::type> operator+(string<N1, TL> const& l, const char (&r)[N2_1])
 {
-    return string<N1 + N2_1 - 1, char_array>(l, string_literal<N2_1 - 1>(r));
+    return string<N1 + N2_1 - 1, typename array_upgrade<TL>::type>(l, string_literal<N2_1 - 1>(r), l.size(), N2_1 - 1);
 }
 
 }} // namespace ak_toolkit::static_str

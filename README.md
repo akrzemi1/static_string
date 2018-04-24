@@ -43,6 +43,22 @@ int test()
 }
 ```
 
+Or:
+
+```c++
+constexpr auto fpath = sstr::literal("path/fname");
+constexpr auto fname = sstr::suffix(fpath, 5);
+// decltype(fname) is sstr::string_literal_suffix<10>
+// fname.size() == 5
+
+constexpr auto full_fname = fname + ".txt";
+// decltype(fname) is sstr::array_string_suffix<10 + 4>
+// fname.size() == 9
+
+  std::cout << full_fname << std::endl;
+  // outputs: "fname.txt"
+```
+
 For more information see [this blog post](https://akrzemi1.wordpress.com/2017/06/28/compile-time-string-concatenation/).
 
 ## installation
