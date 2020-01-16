@@ -93,8 +93,9 @@ namespace ak_toolkit { namespace static_str { namespace detail {
 
 namespace ak_toolkit { namespace static_str {
 
-// # size_tag is used to enable sonstant int inference in constructor templates
+// # size_tag and segment_tag are used to enable constant int inference in constructor templates
 template <int N> struct size_tag {};
+template <int N,  int M> struct segment_tag {};
 
 // # Implementation of a constexpr-compatible assertion
 
@@ -225,9 +226,21 @@ public:
     : string(private_ctor{}, lit, detail::make_int_sequence<N2_plus_1 - 1 - from>{}, from)
     {
     }
+
+    template <int M, typename T,  int from,  int len>
+    constexpr explicit string(string<M, T> const& str, segment_tag<from, len>)
+    : string(private_ctor{}, str, detail::make_int_sequence<len>{}, from)
+    {
+    }
     
     constexpr string(string_literal<N> l) // converting
     : string(private_ctor{}, l, detail::make_int_sequence<N>{}, 0)
+    {
+    }
+
+    template < int N2_plus_1,  int from,  int len>
+    constexpr explicit string(const char (&lit)[N2_plus_1], segment_tag<from, len>)
+    : string(private_ctor{}, lit, detail::make_int_sequence<len>{}, from)
     {
     }
    
@@ -339,7 +352,7 @@ public:
     constexpr string(const char (&lit)[N + 1]) : _lit((AK_TOOLKIT_ASSERT(lit[N] == 0), lit)), _offset(0) {}
     constexpr char operator[](int i) const { return AK_TOOLKIT_ASSERT(i >= 0 && i < size()), _lit[i + _offset]; }
     AK_TOOLKIT_STRING_VIEW_OPERATIONS()
-    constexpr ::std::size_t size() const { return N - _offset; };
+    constexpr ::std::size_t size() const { return N - _offset; }
     constexpr const char* c_str() const { return _lit + _offset; }
     constexpr operator const char * () const { return c_str(); }
 };
@@ -366,6 +379,22 @@ template <int OFFSET, int N_PLUS_1, typename std::enable_if<!(OFFSET >= 0 && OFF
 void offset_literal(const char (&lit)[N_PLUS_1])
 {
     static_assert(OFFSET >= 0 && OFFSET < N_PLUS_1, "bad offset provided to offset_literal");
+}
+
+template <int OFFSET, int LEN , int N_PLUS_1,
+        typename std::enable_if<(OFFSET >= 0 && OFFSET < N_PLUS_1), bool>::type = true,
+        typename std::enable_if<(LEN >= 0 && OFFSET + LEN < N_PLUS_1), bool>::type = true>
+constexpr array_string<LEN> substr(const char (&lit)[N_PLUS_1])
+{
+    return AK_TOOLKIT_ASSERT(lit[N_PLUS_1 - 1] == '\0'), array_string<LEN>(lit, segment_tag<OFFSET, LEN>{});
+}
+
+template <int OFFSET, int LEN , int N, typename T,
+      typename std::enable_if<(OFFSET >= 0 && OFFSET <= N), bool>::type = true,
+      typename std::enable_if<(LEN >= 0 && OFFSET + LEN <= N), bool>::type = true>
+constexpr array_string<LEN> substr(string<N, T> const& sstring)
+{
+    return array_string<LEN>(sstring, segment_tag<OFFSET, LEN>{});
 }
 
 // # A set of concatenating operators, for different combinations of raw literals, string_literal<>, and array_string<>

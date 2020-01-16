@@ -84,9 +84,55 @@ namespace test_literal_suffix
   }
 }	
 
+namespace test_substr
+{
+  constexpr auto AB = sstr::literal("AB");
+  constexpr auto B = sstr::substr<1,1>(AB);
+  constexpr auto ABB = AB + B;
+  constexpr auto BAB = B + AB;
+  constexpr auto BB = B + B;
+
+  constexpr auto full_path = sstr::literal("path/fname.txt");
+  constexpr auto path = sstr::substr<0, 4>(full_path);
+  constexpr auto fname = sstr::substr<5, 5>(full_path);
+  constexpr auto file_ext = sstr::substr<11, 3>(full_path);
+  constexpr auto rfull_path = path + "/" + fname + "." + file_ext;
+
+
+  namespace find
+  {
+
+    template<int N, typename T>
+    constexpr std::size_t find_char(sstr::string<N, T> const& str, char const c, std::size_t const pos = 0)
+    {
+       return pos >= str.size() ? str.size() : str[pos] == c ? pos : find_char(str, c, pos + 1);
+    }
+
+    constexpr auto full_path = sstr::literal("path/fname.txt");
+    constexpr auto slash_pos = find_char(full_path, '/');
+    constexpr auto point_pos = find_char(full_path, '.') ;
+
+    constexpr auto path = sstr::substr<0, slash_pos>(full_path);
+    constexpr auto fname_short = sstr::substr<slash_pos + 1, point_pos - slash_pos - 1>(full_path);
+  }
+
+  void run ()
+  {
+    assert (to_string(BB) == "BB");
+    assert (to_string(ABB) == "ABB");
+    assert (to_string(BAB) == "BAB");
+    assert (to_string(fname) == "fname");
+    assert (to_string(full_path) == to_string(rfull_path));
+    assert (to_string(find::path) == "path");
+    assert (to_string(find::fname_short) == "fname");
+  }
+}
+
+
 int main ()
 {
   test_offset_literal::run();
   test_concatenation::run();
   test_literal_suffix::run();
+  test_substr::run();
 }
