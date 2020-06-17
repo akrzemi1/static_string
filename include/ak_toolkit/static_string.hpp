@@ -199,13 +199,13 @@ class string<N, char_array>
     char _array[N + 1];
     struct private_ctor {};
     
-    template <int M, int... Il, int... Ir, typename TL, typename TR>
+    template <int M, typename TL, typename TR, int... Il, int... Ir>
     constexpr explicit string(private_ctor, string<M, TL> const& l, string<N - M, TR> const& r, detail::int_sequence<Il...>, detail::int_sequence<Ir...>)
       : _array{l[Il]..., r[Ir]..., 0}
     {
     }
    
-    template <int... Il, typename T>
+    template <typename T, int... Il>
     constexpr explicit string(private_ctor, T const& l,
                               detail::int_sequence<Il...>,
                               int offset
