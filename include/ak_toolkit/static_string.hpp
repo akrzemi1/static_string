@@ -417,6 +417,26 @@ constexpr string<N1 + N2_1 - 1, typename array_upgrade<TL>::type> operator+(stri
     return string<N1 + N2_1 - 1, typename array_upgrade<TL>::type>(l, string_literal<N2_1 - 1>(r), l.size(), N2_1 - 1);
 }
 
+template <int N2, typename TR>
+::std::string operator+(::std::string const& l, string<N2, TR> const& r)
+{
+    ::std::string ret;
+    ret.reserve(l.size() + N2);
+    ret.append(l);
+    ret.append(r.c_str(), r.size());
+    return ret;
+}
+
+template <int N1, typename TL>
+::std::string operator+(string<N1, TL> const& l, ::std::string const& r)
+{
+    ::std::string ret;
+    ret.reserve(N1 + r.size());
+    ret.append(l.c_str(), l.size());
+    ret.append(r);
+    return ret;
+}
+
 }} // namespace ak_toolkit::static_str
 
 #endif // header guard
