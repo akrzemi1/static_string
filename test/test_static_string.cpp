@@ -2,6 +2,7 @@
 #include <sstream>
 #include <cassert>
 #include <type_traits>
+#include <string>
 
 namespace sstr = ak_toolkit::static_str;
 
@@ -10,7 +11,7 @@ std::string to_string(T s)
 {
   std::ostringstream os;
   os << s;
-  return os.str(); 
+  return os.str();
 }
 
 namespace test_concatenation
@@ -27,7 +28,7 @@ namespace test_concatenation
   static_assert(std::is_same<decltype(NAME), const sstr::array_string<8>>::value, "***");
   static_assert(NAME.size() == 8, "***");
   static_assert(NAME[0] == 'A', "***");
-  
+
   void run ()
   {
     assert(to_string(NAME) == "ABCDEFGH");
@@ -48,15 +49,15 @@ namespace test_offset_literal
   static_assert(CD.size() == 2, "***");
   static_assert(CD[0] == 'C', "***");
   static_assert(CD[1] == 'D', "***");
-  
+
   constexpr auto AB_CD = sstr::offset_literal<0>("AB_CD");
   static_assert(AB_CD.size() == 5, "***");
   static_assert(AB_CD[0] == 'A', "***");
   static_assert(AB_CD[4] == 'D', "***");
-  
+
   constexpr auto _0 = sstr::offset_literal<5>("AB_CD");
   static_assert(_0.size() == 0, "***");
-  
+
   void run ()
   {
     assert(to_string(CD) == "CD");
@@ -68,21 +69,21 @@ namespace test_literal_suffix
   constexpr auto fpath = sstr::literal("path/fname");
   constexpr auto fname = sstr::suffix(fpath, 5);
   constexpr auto full_fname = fname + ".txt";
-    
+
   constexpr auto AB = sstr::literal("AB");
   constexpr auto B = sstr::suffix(AB, 1);
   constexpr auto ABB = AB + B;
   constexpr auto BAB = B + AB;
   constexpr auto BB = B + B;
-  
-  void run () 
+
+  void run ()
   {
     assert (to_string(BB) == "BB");
     assert (to_string(ABB) == "ABB");
     assert (to_string(BAB) == "BAB");
     assert (to_string(full_fname) == "fname.txt");
   }
-}	
+}
 
 namespace test_substr
 {
@@ -128,6 +129,23 @@ namespace test_substr
   }
 }
 
+namespace test_string_add
+{
+#if defined AK_TOOLKIT_CONFIG_USING_STRING_VIEW && AK_TOOLKIT_CONFIG_USING_STRING_VIEW >= 1 && defined AK_TOOLKIT_CONFIG_USING_STRING
+  constexpr auto abc = sstr::literal("ABC");
+
+  void run()
+  {
+    const std::string def = "DEF";
+    const std::string result_l = abc + def;
+    const std::string result_r = def + abc;
+    assert(result_l == "ABCDEF");
+    assert(result_r == "DEFABC");
+  }
+#else
+  void run() {}
+#endif
+}
 
 int main ()
 {
@@ -135,4 +153,5 @@ int main ()
   test_concatenation::run();
   test_literal_suffix::run();
   test_substr::run();
+  test_string_add::run();
 }
