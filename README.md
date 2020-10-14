@@ -1,5 +1,5 @@
 # static_string
-A C++11 single-header library for representing and concatenating constexpr string literals. 
+A C++11 single-header library for representing and concatenating constexpr string literals.
 
 ## Usage
 You use this library if you want to build a relatively short string whose contents you know at compile time, and you want to make sure no [static initialization order fiasco](https://isocpp.org/wiki/faq/ctors#static-init-order) ever occurs.
@@ -23,7 +23,7 @@ int main()
 {
   std::cout << MESSAGE << std::endl;
   // outputs: "service SRVC1 ready"
-  
+
   const char * msg = MESSAGE; // conversion to const char *
   std::cout << msg << std::endl;
   // outputs: "service SRVC1 ready"
@@ -61,8 +61,23 @@ constexpr auto full_fname = fname + ".txt";
 
 For more information see [this blog post](https://akrzemi1.wordpress.com/2017/06/28/compile-time-string-concatenation/).
 
-## installation
+## Installation
 It is a C++11 header-only library.
+
+## Configuration
+If you define macro `AK_TOOLKIT_CONFIG_USING_STRING_VIEW` as `1`, `2`, `3`, or `4`
+prior to including header `ak_toolkit/static_string.hpp` then the library will also
+provide conversion operator to type `string_view`, where the type of `string_view`
+is defined depending on the value of macro `AK_TOOLKIT_CONFIG_USING_STRING_VIEW`
+as follows:
+
+* `1`: `std::string_view`
+* `2`: `std::experimental::string_view`
+* `3`: `boost::string_ref`
+* `4`: `std::string`
+
+
+If you define macro `AK_TOOLKIT_CONFIG_USING_STRING` prior to including header `ak_toolkit/static_string.hpp` then the library will additionally provide two overloads of `operator+` taking `string_view` on one side and and any of the static strings on the other.
 
 ## License
 Distributed under the [Boost Software License, Version 1.0](http://www.boost.org/LICENSE_1_0.txt).

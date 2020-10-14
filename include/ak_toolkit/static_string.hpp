@@ -17,21 +17,35 @@
 # if defined AK_TOOLKIT_CONFIG_USING_STRING_VIEW
 #   if AK_TOOLKIT_CONFIG_USING_STRING_VIEW == 0
 #     define AK_TOOLKIT_STRING_VIEW_OPERATIONS()
-#   elif AK_TOOLKIT_CONFIG_USING_STRING_VIEW == 1
-#     include <string_view>
-#     define AK_TOOLKIT_STRING_VIEW_OPERATIONS() constexpr operator ::std::string_view () const { return ::std::string_view(c_str(), size()); }
-#   elif AK_TOOLKIT_CONFIG_USING_STRING_VIEW == 2
-#     include <experimental/string_view>
-#     define AK_TOOLKIT_STRING_VIEW_OPERATIONS() constexpr operator ::std::experimental::string_view () const { return ::std::experimental::string_view(c_str(), size()); }
-#   elif AK_TOOLKIT_CONFIG_USING_STRING_VIEW == 3
-#     include <boost/utility/string_ref.hpp> 
-#     define AK_TOOLKIT_STRING_VIEW_OPERATIONS() constexpr operator ::boost::string_ref () const { return ::boost::string_ref(c_str(), size()); }
-#   elif AK_TOOLKIT_CONFIG_USING_STRING_VIEW == 4
-#     include <string> 
-#     define AK_TOOLKIT_STRING_VIEW_OPERATIONS() operator ::std::string () const { return ::std::string(c_str(), size()); }
+#   else
+#     if AK_TOOLKIT_CONFIG_USING_STRING_VIEW == 1
+#       include <string_view>
+#       define AK_TOOLKIT_STRING_REF_RETURN_TYPE ::std::string_view
+#       define AK_TOOLKIT_STRING_REF_ARGUMENT_TYPE ::std::string_view
+#     elif AK_TOOLKIT_CONFIG_USING_STRING_VIEW == 2
+#       include <experimental/string_view>
+#       define AK_TOOLKIT_STRING_REF_RETURN_TYPE ::std::experimental::string_view
+#       define AK_TOOLKIT_STRING_REF_ARGUMENT_TYPE ::std::experimental::string_view
+#     elif AK_TOOLKIT_CONFIG_USING_STRING_VIEW == 3
+#       include <boost/utility/string_ref.hpp>
+#       define AK_TOOLKIT_STRING_REF_RETURN_TYPE ::boost::string_ref
+#       define AK_TOOLKIT_STRING_REF_ARGUMENT_TYPE ::boost::string_ref
+#     elif AK_TOOLKIT_CONFIG_USING_STRING_VIEW == 4
+#       include <string>
+#       define AK_TOOLKIT_STRING_REF_RETURN_TYPE ::std::string
+#       define AK_TOOLKIT_STRING_REF_ARGUMENT_TYPE ::std::string const&
+#     endif
+#     define AK_TOOLKIT_STRING_VIEW_OPERATIONS() operator AK_TOOLKIT_STRING_REF_RETURN_TYPE () const { return AK_TOOLKIT_STRING_REF_RETURN_TYPE(c_str(), size()); }
 #   endif
 # else
 #   define AK_TOOLKIT_STRING_VIEW_OPERATIONS()
+# endif
+
+# if defined AK_TOOLKIT_CONFIG_USING_STRING
+#   include <string>
+#   ifndef AK_TOOLKIT_STRING_REF_ARGUMENT_TYPE
+#     define AK_TOOLKIT_STRING_REF_ARGUMENT_TYPE ::std::string const&
+#   endif
 # endif
 
 #if __cplusplus >= 201402L
@@ -48,40 +62,40 @@ template <int N>
 }}}
 
 #else // not C++14
-	
+
 namespace ak_toolkit { namespace static_str { namespace detail {
- 
+
 // # Implementation of a subset of C++14 std::integer_sequence and std::make_integer_sequence
- 
+
   template <int... I>
   struct int_sequence
   {};
- 
+
   template <int i, typename T>
   struct cat
   {
     static_assert (sizeof(T) < 0, "bad use of cat");
   };
- 
+
   template <int i, int... I>
   struct cat<i, int_sequence<I...>>
   {
     using type = int_sequence<I..., i>;
   };
- 
+
   template <int I>
   struct make_int_sequence_
   {
     static_assert (I >= 0, "bad use of make_int_sequence: negative size");
     using type = typename cat<I - 1, typename make_int_sequence_<I - 1>::type>::type;
   };
- 
+
   template <>
   struct make_int_sequence_<0>
   {
     using type = int_sequence<>;
   };
- 
+
   template <int I>
   using make_int_sequence = typename make_int_sequence_<I>::type;
 
@@ -162,11 +176,11 @@ template <int N>
 class string<N, literal_ref>
 {
 	static_assert (N >= 0, "string with negative length would be created");
-	
+
     const char (&_lit)[N + 1];
-    
+
     template <int, typename> friend class string;
-    
+
 public:
     constexpr string(const char (&lit)[N + 1]) : _lit((AK_TOOLKIT_ASSERT(lit[N] == 0), lit)) {}
     constexpr char operator[](int i) const { return AK_TOOLKIT_ASSERT(i >= 0 && i < N), _lit[i]; }
@@ -195,16 +209,16 @@ template <int N>
 class string<N, char_array>
 {
 	static_assert (N >= 0, "string with negative length would be created");
-	
+
     char _array[N + 1];
     struct private_ctor {};
-    
+
     template <int M, typename TL, typename TR, int... Il, int... Ir>
     constexpr explicit string(private_ctor, string<M, TL> const& l, string<N - M, TR> const& r, detail::int_sequence<Il...>, detail::int_sequence<Ir...>)
       : _array{l[Il]..., r[Ir]..., 0}
     {
     }
-   
+
     template <typename T, int... Il>
     constexpr explicit string(private_ctor, T const& l,
                               detail::int_sequence<Il...>,
@@ -213,14 +227,14 @@ class string<N, char_array>
       : _array{l[Il + offset]..., 0}
     {
     }
-   
+
 public:
     template <int M, typename TL, typename TR, typename std::enable_if<(M <= N), bool>::type = true>
     constexpr explicit string(string<M, TL> l, string<N - M, TR> r, int, int)
     : string(private_ctor{}, l, r, detail::make_int_sequence<M>{}, detail::make_int_sequence<N - M>{})
     {
     }
-    
+
     template <int N2_plus_1, int from>
     constexpr explicit string(const char (&lit)[N2_plus_1], size_tag<from>)
     : string(private_ctor{}, lit, detail::make_int_sequence<N2_plus_1 - 1 - from>{}, from)
@@ -232,7 +246,7 @@ public:
     : string(private_ctor{}, str, detail::make_int_sequence<len>{}, from)
     {
     }
-    
+
     constexpr string(string_literal<N> l) // converting
     : string(private_ctor{}, l, detail::make_int_sequence<N>{}, 0)
     {
@@ -243,9 +257,9 @@ public:
     : string(private_ctor{}, lit, detail::make_int_sequence<len>{}, from)
     {
     }
-   
+
     constexpr ::std::size_t size() const { return N; }
-  
+
     constexpr const char* c_str() const { return _array; }
     constexpr operator const char * () const { return c_str(); }
     AK_TOOLKIT_STRING_VIEW_OPERATIONS()
@@ -262,25 +276,25 @@ template <int N>
 class string<N, array_suffix>
 {
 	static_assert (N >= 0, "string with negative length would be created");
-	
+
     char _array[N + 1];
     int _offset;
     // invariant: 0 <= _offset && _offset <= N
-    
+
     struct private_ctor {};
-    
+
     template <int M, typename TL, typename TR>
     constexpr static char permute1(string<M, TL> const& l, string<N - M, TR> const&, int lsize, int rsize, int i)
     {
       return i < M - lsize + N - M - rsize ? '\0' : l[i - (M - lsize + N - M - rsize)];
     }
-    
+
     template <int M, typename TL, typename TR>
     constexpr static char permute2(string<M, TL> const& l, string<N - M, TR> const& r, int lsize, int rsize, int i)
     {
       return i < N - M - rsize ? l[lsize - (N - M - rsize) + i] : r[i - (N - M - rsize)];
     }
-    
+
     template <int M, int... Il, int... Ir, typename TL, typename TR>
     constexpr explicit string(private_ctor, string<M, TL> const& l, string<N - M, TR> const& r, detail::int_sequence<Il...>, detail::int_sequence<Ir...>,
                               int lsize, int rsize)
@@ -288,7 +302,7 @@ class string<N, array_suffix>
       , _offset(N - lsize - rsize)
     {
     }
-   
+
     template <int... Il, typename T>
     constexpr explicit string(private_ctor, T const& l,
                               detail::int_sequence<Il...>,
@@ -298,27 +312,27 @@ class string<N, array_suffix>
       , _offset(offset)
     {
     }
-   
+
 public:
     template <int M, typename TL, typename TR, typename std::enable_if<(M <= N), bool>::type = true>
     constexpr explicit string(string<M, TL> l, string<N - M, TR> r, int lsize, int rsize)
     : string(private_ctor{}, l, r, detail::make_int_sequence<M>{}, detail::make_int_sequence<N - M>{}, lsize, rsize)
     {
     }
-    
+
     template <int N2_plus_1, int from>
     constexpr explicit string(const char (&lit)[N2_plus_1], size_tag<from>)
     : string(private_ctor{}, lit, detail::make_int_sequence<N2_plus_1 - 1 - from>{}, from)
     {
     }
-    
+
     constexpr string(string_literal<N> l) // converting
     : string(private_ctor{}, l, detail::make_int_sequence<N>{}, 0)
     {
     }
-   
+
     constexpr ::std::size_t size() const { return N - _offset; }
-  
+
     constexpr const char* c_str() const { return _array + _offset; }
     constexpr operator const char * () const { return c_str(); }
     AK_TOOLKIT_STRING_VIEW_OPERATIONS()
@@ -327,28 +341,28 @@ public:
 
 template <int N>
   using array_string_suffix = string<N, array_suffix>;
-  
+
 // # An implementation with compile-time capacity and constexpr length
 
 template <int N>
 class string<N, literal_suffix>
 {
 	static_assert (N >= 0, "string with negative length would be created");
-	
+
     const char (&_lit)[N + 1];
     int _offset;
-    
+
     // invariant: _offset >= 0 && _offset <= N
-    
+
 public:
     constexpr string(const char (&lit)[N + 1], int offset)
       : _lit((AK_TOOLKIT_ASSERT(lit[N] == 0), lit))
       , _offset((AK_TOOLKIT_ASSERT(0 <= offset && offset <= N), offset)) {}
-      
+
     constexpr string(string_literal<N> l, int offset)
       : _lit(l._lit)
       , _offset((AK_TOOLKIT_ASSERT(0 <= offset && offset <= N), offset)) {}
-      
+
     constexpr string(const char (&lit)[N + 1]) : _lit((AK_TOOLKIT_ASSERT(lit[N] == 0), lit)), _offset(0) {}
     constexpr char operator[](int i) const { return AK_TOOLKIT_ASSERT(i >= 0 && i < int(size())), _lit[i + _offset]; }
     AK_TOOLKIT_STRING_VIEW_OPERATIONS()
@@ -416,6 +430,28 @@ constexpr string<N1 + N2_1 - 1, typename array_upgrade<TL>::type> operator+(stri
 {
     return string<N1 + N2_1 - 1, typename array_upgrade<TL>::type>(l, string_literal<N2_1 - 1>(r), l.size(), N2_1 - 1);
 }
+
+# if defined AK_TOOLKIT_CONFIG_USING_STRING
+template <int N2, typename TR>
+::std::string operator+(AK_TOOLKIT_STRING_REF_ARGUMENT_TYPE l, string<N2, TR> const& r)
+{
+    ::std::string ret;
+    ret.reserve(l.size() + N2);
+    ret.append(l);
+    ret.append(r.c_str(), r.size());
+    return ret;
+}
+
+template <int N1, typename TL>
+::std::string operator+(string<N1, TL> const& l, AK_TOOLKIT_STRING_REF_ARGUMENT_TYPE r)
+{
+    ::std::string ret;
+    ret.reserve(N1 + r.size());
+    ret.append(l.c_str(), l.size());
+    ret.append(r);
+    return ret;
+}
+# endif
 
 }} // namespace ak_toolkit::static_str
 
