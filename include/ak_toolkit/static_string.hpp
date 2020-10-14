@@ -270,7 +270,7 @@ class string<N, array_suffix>
     struct private_ctor {};
     
     template <int M, typename TL, typename TR>
-    constexpr static char permute1(string<M, TL> const& l, string<N - M, TR> const& r, int lsize, int rsize, int i)
+    constexpr static char permute1(string<M, TL> const& l, string<N - M, TR> const&, int lsize, int rsize, int i)
     {
       return i < M - lsize + N - M - rsize ? '\0' : l[i - (M - lsize + N - M - rsize)];
     }
@@ -350,7 +350,7 @@ public:
       , _offset((AK_TOOLKIT_ASSERT(0 <= offset && offset <= N), offset)) {}
       
     constexpr string(const char (&lit)[N + 1]) : _lit((AK_TOOLKIT_ASSERT(lit[N] == 0), lit)), _offset(0) {}
-    constexpr char operator[](int i) const { return AK_TOOLKIT_ASSERT(i >= 0 && i < size()), _lit[i + _offset]; }
+    constexpr char operator[](int i) const { return AK_TOOLKIT_ASSERT(i >= 0 && i < int(size())), _lit[i + _offset]; }
     AK_TOOLKIT_STRING_VIEW_OPERATIONS()
     constexpr ::std::size_t size() const { return N - _offset; }
     constexpr const char* c_str() const { return _lit + _offset; }
@@ -376,7 +376,7 @@ constexpr array_string<N_PLUS_1 - 1 - OFFSET> offset_literal(const char (&lit)[N
 }
 
 template <int OFFSET, int N_PLUS_1, typename std::enable_if<!(OFFSET >= 0 && OFFSET < N_PLUS_1), bool>::type = true>
-void offset_literal(const char (&lit)[N_PLUS_1])
+void offset_literal(const char (&)[N_PLUS_1])
 {
     static_assert(OFFSET >= 0 && OFFSET < N_PLUS_1, "bad offset provided to offset_literal");
 }
